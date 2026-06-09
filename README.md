@@ -19,6 +19,7 @@ seconds.
 > over incomplete ambitious features.
 
 📄 **For the reasoning behind every decision, see [APPROACH.md](APPROACH.md).**
+📊 **For a validation run on 40 real registry labels, see [EVALUATION.md](EVALUATION.md).**
 
 ---
 
