@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# OCR model cache
+*.onnx
+
+# Generated test artifacts
+tests/sample_data/sample_label.png
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
