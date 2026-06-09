@@ -16,6 +16,13 @@ submitted to the deployed app exactly as an agent would.
   app always checks it against the fixed federal text (27 CFR Part 16).
 - **Live endpoint:** `POST /verify` on the deployed Space, OCR via local RapidOCR.
 
+> **Reproduce it yourself.** The full corpus — all 40 products' label images plus
+> a ready-to-upload `manifest.csv` and a `field_data_reference.csv` — is bundled
+> at [`tests/eval_labels/`](tests/eval_labels/). Upload `manifest.csv` + the
+> images in the app's **Batch** tab, or `POST` them to `/verify-batch`. (Because
+> the registry returns newest matches first, a fresh pull may differ by a few
+> rows from the table below; the bundled corpus is the exact set referenced here.)
+
 ## Headline results
 
 | Field | Outcome |
