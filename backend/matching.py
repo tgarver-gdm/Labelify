@@ -99,23 +99,59 @@ def _match_fuzzy_core(field, expected, full_text, found_line, line_score):
 def match_abv(expected, full_text, lines):
     """
     Alcohol content. Compare the NUMBER, not the string — "13.5%" and
-    "13.5% ALC/VOL" should both satisfy an expected "13.5".
+    "13.5% ALC/VOL" both satisfy an expected "13.5".
+
+    This is label-vs-application, so the printed value must match what the
+    application declared (we do NOT apply the 27 CFR 4.36 production tolerance,
+    which governs *actual* vs *labeled* alcohol — a different axis). We only
+    allow tiny slack (OCR noise). But 4.36 does permit two label forms the naive
+    matcher would wrongly fail, which we handle:
+      1. A stated RANGE, e.g. "12% to 14%" — pass if the declared value is inside.
+      2. "TABLE WINE" / "LIGHT WINE" — a legal alternative to a numeric statement
+         for wines <=14% ABV. Flagged REVIEW so the agent confirms the wine
+         qualifies.
     """
+    OCR_SLACK = 0.05
     want = _parse_number(expected)
-    found_numbers = _find_percentages(full_text)
     if want is None:
         return _result("alcohol_content", REVIEW, expected, None, 0,
                        "Expected ABV value could not be parsed.")
+
+    # (1) Range statement on the label, e.g. "12% to 14%" / "12-14% ALC BY VOL".
+    rng = _find_abv_range(full_text)
+    if rng and rng[0] - OCR_SLACK <= want <= rng[1] + OCR_SLACK:
+        return _result("alcohol_content", PASS, expected, f"{rng[0]}%–{rng[1]}%", 100,
+                       f"Declared {expected} falls within the label's stated range.")
+
+    # (2) Exact numeric match (the normal case).
+    found_numbers = _find_percentages(full_text)
     for num, raw in found_numbers:
-        if abs(num - want) < 0.05:
+        if abs(num - want) <= OCR_SLACK:
             return _result("alcohol_content", PASS, expected, raw, 100,
                            f"ABV matches ({raw}).")
+
+    # (3) "Table wine" / "light wine" — allowed without a number for <=14% ABV.
+    low = full_text.lower()
+    if ("table wine" in low or "light wine" in low) and want <= 14.0:
+        return _result("alcohol_content", REVIEW, expected, "table/light wine", 70,
+                       'Label uses "table/light wine" instead of a number — '
+                       "permitted for wines ≤14% ABV. Confirm the wine qualifies.")
+
     if found_numbers:
         nearest = min(found_numbers, key=lambda x: abs(x[0] - want))
         return _result("alcohol_content", MISMATCH, expected, nearest[1], 60,
                        f"Label shows {nearest[1]}, application says {expected}.")
     return _result("alcohol_content", NOT_FOUND, expected, None, 0,
                    "No alcohol percentage found on the label.")
+
+
+def _find_abv_range(text):
+    """Detect a stated ABV range like '12% to 14%' or '12-14%'. Returns (lo, hi)."""
+    m = re.search(r"(\d+(?:\.\d+)?)\s*%?\s*(?:to|-|–|—)\s*(\d+(?:\.\d+)?)\s*%", text, re.I)
+    if not m:
+        return None
+    lo, hi = float(m.group(1)), float(m.group(2))
+    return (min(lo, hi), max(lo, hi))
 
 
 def match_net_contents(expected, full_text, lines):

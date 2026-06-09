@@ -134,6 +134,19 @@ egress required.
   and was left out to keep the core clean per the brief's trade-off philosophy.
 - No persistence / no PII stored, per the prototype scope.
 
+## Domain rules encoded
+
+The ABV matcher follows the actual wine-labeling regs ([27 CFR 4.36](https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-4/subpart-D/section-4.36)),
+not just naive string equality:
+
+- A label may state ABV as a **range** ("12% to 14%") — Labelify passes when the
+  application's declared value falls inside it.
+- Wines ≤14% ABV may use **"table wine" / "light wine"** instead of a number —
+  recognized as a valid alternative and flagged for the agent to confirm.
+- The reg's ±1.0%/±1.5% figure is a *production* tolerance (actual vs labeled
+  alcohol), a different axis from label-vs-application, so it is intentionally
+  **not** applied here. Calling that out is the point — see `match_abv`.
+
 ## If I had more time
 
 Image preprocessing (deskew + contrast), threshold tuning on real labels, a

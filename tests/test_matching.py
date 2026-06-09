@@ -51,6 +51,19 @@ def test_abv_mismatch_detected():
     assert status_for(results, "alcohol_content") == MISMATCH
 
 
+def test_abv_range_on_label_passes_when_inside():
+    # 27 CFR 4.36 permits a stated range; 13.5 falls inside "12% to 14%".
+    label = "STONE'S THROW\nRed Wine\n12% to 14% Alc by Vol\n750 mL"
+    results, _ = verify_fields(label, {"alcohol_content": "13.5%"})
+    assert status_for(results, "alcohol_content") == PASS
+
+
+def test_table_wine_is_legal_alternative_for_low_abv():
+    label = "STONE'S THROW\nCalifornia Table Wine\n750 mL"
+    results, _ = verify_fields(label, {"alcohol_content": "12.5%"})
+    assert status_for(results, "alcohol_content") == REVIEW
+
+
 def test_net_contents_spacing_tolerant():
     results, _ = verify_fields(GOOD_LABEL, {"net_contents": "750mL"})
     assert status_for(results, "net_contents") == PASS
