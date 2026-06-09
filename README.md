@@ -191,6 +191,14 @@ not just naive string equality:
   alcohol), a different axis from label-vs-application, so it is intentionally
   **not** applied here. Calling that out is the point — see `match_abv`.
 
+The **class/type** matcher resolves the COLA's category *code* to its family,
+because the code ("TABLE RED WINE") is never printed verbatim — the label shows a
+designation ("Cabernet Sauvignon"). `CLASS_FAMILIES` in `matching.py` maps ~15
+families (red/white/rosé/sparkling/dessert/flavored wine, the major spirits, beer,
+cider) to their on-label terms; an unmapped class falls back to fuzzy matching.
+This was found by running 20 real registry labels — the COLA code otherwise
+false-fails every wine.
+
 ## If I had more time
 
 Image preprocessing (deskew + contrast), threshold tuning on real labels, a

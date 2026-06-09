@@ -115,6 +115,37 @@ def test_only_filled_fields_are_checked():
     assert len(results) == 1
 
 
+def test_class_code_resolves_to_varietal():
+    # COLA class code "TABLE RED WINE" should be satisfied by a red varietal.
+    results, _ = verify_fields("CHATEAU X\nCabernet Sauvignon\n750 mL",
+                               {"class_type": "TABLE RED WINE"})
+    assert status_for(results, "class_type") == PASS
+
+
+def test_class_code_white_satisfied_by_chardonnay():
+    results, _ = verify_fields("Chardonnay 2022\nNapa Valley",
+                               {"class_type": "TABLE WHITE WINE"})
+    assert status_for(results, "class_type") == PASS
+
+
+def test_class_dessert_code_satisfied_by_port():
+    results, _ = verify_fields("Fine Tawny Port\n20% Alc",
+                               {"class_type": "DESSERT /PORT/SHERRY/(COOKING) WINE"})
+    assert status_for(results, "class_type") == PASS
+
+
+def test_class_red_code_not_satisfied_by_white_varietal():
+    # A red-wine application but the label shows a white varietal -> real discrepancy.
+    results, _ = verify_fields("Chardonnay\nNapa", {"class_type": "TABLE RED WINE"})
+    assert status_for(results, "class_type") == NOT_FOUND
+
+
+def test_unmapped_class_falls_back_to_fuzzy():
+    results, _ = verify_fields("Premium Hard Seltzer\nBlack Cherry",
+                               {"class_type": "Hard Seltzer"})
+    assert status_for(results, "class_type") == PASS
+
+
 def test_multi_panel_combined_text_satisfies_all_fields():
     # The multi-image rationale at the logic level: real labels split mandatory
     # info across panels. Brand/class live on the FRONT, the warning on the BACK.

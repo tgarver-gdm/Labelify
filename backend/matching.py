@@ -83,9 +83,83 @@ def match_brand(expected, full_text, lines):
 
 
 def match_generic_fuzzy(field, expected, full_text, lines):
-    """Class/type, producer, country of origin — fuzzy text presence check."""
+    """Producer, country of origin — fuzzy text presence check."""
     found_line, line_score = _best_line(expected, lines)
     return _match_fuzzy_core(field, expected, full_text, found_line, line_score)
+
+
+# COLA "class/type" is a CATEGORY CODE ("TABLE RED WINE"), but the label prints a
+# specific designation ("Cabernet Sauvignon"). This maps each family to the
+# on-label terms that satisfy it. Deliberately compact: ~15 families cover
+# essentially all consumer labels; the official TTB code list is far longer but
+# collapses into these, and any unmapped class falls back to fuzzy matching.
+CLASS_FAMILIES = {
+    "red wine": ["red wine", "red table wine", "rouge", "red blend", "cabernet",
+                 "cabernet sauvignon", "cabernet franc", "merlot", "pinot noir",
+                 "syrah", "shiraz", "zinfandel", "malbec", "sangiovese", "tempranillo",
+                 "grenache", "petite sirah", "petit verdot", "barbera", "nebbiolo",
+                 "carmenere", "claret", "bordeaux", "chianti", "rioja", "montepulciano"],
+    "white wine": ["white wine", "white table wine", "blanc", "white blend",
+                   "chardonnay", "sauvignon blanc", "pinot grigio", "pinot gris",
+                   "riesling", "moscato", "muscat", "viognier", "chenin blanc",
+                   "gewurztraminer", "albarino", "verdejo", "gruner veltliner",
+                   "semillon", "trebbiano", "vermentino"],
+    "rose wine": ["rose", "rose wine", "blush", "white zinfandel", "rosado"],
+    "sparkling wine": ["sparkling", "sparkling wine", "champagne", "cremant", "cava",
+                       "prosecco", "brut", "spumante", "blanc de blancs", "blanc de noirs"],
+    "dessert wine": ["dessert wine", "port", "tawny", "sherry", "madeira", "marsala",
+                     "muscatel", "fortified", "tokaji", "ice wine", "late harvest", "sauternes"],
+    "flavored wine": ["flavored wine", "sangria", "fruit wine", "apple wine", "berry wine"],
+    "whisky": ["whisky", "whiskey", "bourbon", "rye", "scotch", "single malt", "moonshine"],
+    "vodka": ["vodka"],
+    "gin": ["gin"],
+    "rum": ["rum", "rhum", "cachaca"],
+    "tequila": ["tequila", "mezcal", "agave"],
+    "brandy": ["brandy", "cognac", "armagnac", "eau de vie", "grappa", "pisco"],
+    "liqueur": ["liqueur", "cordial", "schnapps", "aperitif", "amaro", "bitters"],
+    "beer": ["beer", "ale", "lager", "ipa", "stout", "porter", "pilsner", "malt beverage", "hard seltzer"],
+    "cider": ["cider", "cidre", "perry"],
+}
+
+
+def _normalize_class(s):
+    """Strip TTB code cruft: 'TABLE', parentheticals, slashes -> a clean phrase."""
+    s = s.lower()
+    s = re.sub(r"\([^)]*\)", " ", s)      # drop "(cooking)" etc.
+    s = s.replace("/", " ").replace("table", " ")
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def match_class(expected, full_text, lines):
+    """
+    Class/type. Resolve the application's class CODE to its family, then pass if
+    the label shows the family name OR any member designation (a varietal, etc.).
+    Falls back to plain fuzzy matching for classes not in the family map.
+    """
+    exp_norm = _normalize_class(expected)
+    label = full_text.lower()
+
+    # Which families does the expected code belong to? (e.g. "dessert /port/sherry"
+    # hits the dessert family via several of its terms.)
+    acceptable, family = set(), None
+    for fam, terms in CLASS_FAMILIES.items():
+        if fam in exp_norm or any(t in exp_norm for t in terms):
+            acceptable.update([fam] + terms)
+            family = family or fam
+
+    if not acceptable:
+        # Unmapped class — behave exactly as before.
+        return match_generic_fuzzy("class_type", expected, full_text, lines)
+
+    # Pass if any acceptable designation appears on the label (whole-word).
+    for term in sorted(acceptable, key=len, reverse=True):
+        if re.search(r"\b" + re.escape(term) + r"\b", label):
+            return _result("class_type", PASS, expected, term, 100,
+                           f'Label shows "{term}", which satisfies "{expected}".')
+
+    examples = ", ".join(CLASS_FAMILIES[family][:4])
+    return _result("class_type", NOT_FOUND, expected, None, 0,
+                   f'Expected a {family} designation (e.g. {examples}); none found on label.')
 
 
 def _match_fuzzy_core(field, expected, full_text, found_line, line_score):
@@ -288,6 +362,7 @@ def _find_quantities(text):
 # Maps each expected field to the matcher that handles it.
 _DISPATCH = {
     "brand_name": match_brand,
+    "class_type": match_class,
     "alcohol_content": match_abv,
     "net_contents": match_net_contents,
     "government_warning": match_government_warning,
