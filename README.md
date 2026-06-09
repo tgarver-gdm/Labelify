@@ -25,9 +25,15 @@ seconds.
 ## How it works (30-second version)
 
 ```
-label photo ──► [ OCR: read all text ]  ──►  [ match each field ]  ──► checklist
-                  RapidOCR (local)            deterministic rules
+label photos ─► [ OCR each panel ]─► [ combine text ]─► [ match each field ]─► checklist
+front/back/neck   RapidOCR (local)                       deterministic rules
 ```
+
+Real COLAs split mandatory info across panels — brand/class on the **front**,
+the government warning/ABV/net contents on the **back** — so Labelify accepts
+**all panels for one product** and verifies against their combined text. (A
+single front photo can never satisfy every field; this was confirmed by testing
+real registry labels.)
 
 The problem splits cleanly into two halves:
 
@@ -92,11 +98,14 @@ The brief shipped **no sample labels**, so:
   `tests/sample_data/sample_application.json`. Note the application uses
   *"Stone's Throw"* while the label shows *"STONE'S THROW"* — a deliberate
   demo of the case-difference REVIEW flag.
-- **Real label included:** `real_stone_imperial_whiskey_back.png` +
-  `real_stone_imperial_whiskey_application.json` — an actual approved label
-  (Stone Imperial Whiskey, TTB ID 22202001001034). Its tiny low-contrast
-  government-warning print is a deliberately hard OCR case that exercises the
-  fail-safe "partial detection → review" behavior.
+- **Real labels included** (pulled from the registry, with matched application data):
+  - **Stone Imperial Whiskey** (`real_stone_imperial_whiskey_*`) — tiny
+    low-contrast warning; exercises "partial detection → review".
+  - **Twenty-One Brix Cabernet Franc** (`real_twentyonebrix_*`) — a **front +
+    back pair**: brand on the front, warning on the back. Upload both to see
+    multi-panel verification.
+  - **Viña Männle** (`real_vina_mannle_back.png`) — imported Chilean back label,
+    another partial-detection case.
 - **More real labels:** the public **TTB COLA Registry**. To get a label image:
   1. Search at `https://www.ttbonline.gov/colasonline/publicSearchColasBasic.do`
   2. Open a result, click **Printable Version**

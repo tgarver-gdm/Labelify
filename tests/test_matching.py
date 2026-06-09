@@ -113,3 +113,19 @@ def test_government_warning_partial_ocr_is_review_not_missing():
 def test_only_filled_fields_are_checked():
     results, _ = verify_fields(GOOD_LABEL, {"brand_name": "STONE'S THROW", "class_type": ""})
     assert len(results) == 1
+
+
+def test_multi_panel_combined_text_satisfies_all_fields():
+    # The multi-image rationale at the logic level: real labels split mandatory
+    # info across panels. Brand/class live on the FRONT, the warning on the BACK.
+    # The app OCRs each panel and joins the text (front + "\n\n" + back); neither
+    # panel alone would pass, but the combined text does.
+    front = "STONE'S THROW\nRed Wine\n750 mL"
+    back = f"Acme Winery, Napa CA\nAlc. 13.5% by Vol\n{GOV}"
+    combined = front + "\n\n" + back
+    results, overall = verify_fields(combined, {
+        "brand_name": "STONE'S THROW",       # front only
+        "government_warning": GOV,            # back only
+    })
+    assert status_for(results, "brand_name") == PASS
+    assert status_for(results, "government_warning") == REVIEW

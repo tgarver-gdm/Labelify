@@ -1,0 +1,9 @@
+{
+  "_source": "TTB Public COLA Registry, TTB ID 25136001000248 (approved 2025-06-09)",
+  "_label_images": ["real_twentyonebrix_cabfranc_front.png (front)", "real_twentyonebrix_cabfranc_back.png (back)"],
+  "_note": "Front + back pair. Demonstrates multi-image verification: brand/varietal are on the FRONT, the government warning is on the BACK. Upload both panels together. On the back, OCR reads the warning in ALL CAPS -> REVIEW (bold needs human confirmation).",
+  "brand_name": "Twenty-One Brix",
+  "class_type": "Red Wine",
+  "country_of_origin": "",
+  "government_warning": "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."
+}

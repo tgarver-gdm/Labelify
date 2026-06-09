@@ -1,0 +1,9 @@
+{
+  "_source": "TTB Public COLA Registry, TTB ID 25156001000965 (approved 2025-06-16)",
+  "_label_image": "real_vina_mannle_back.png (back)",
+  "_note": "Imported Chilean wine back label. The warning prints small; OCR reads several phrases but not a clean exact match -> exercises the 'partial detection -> review' fail-safe.",
+  "brand_name": "Vina Mannle",
+  "class_type": "Red Wine",
+  "country_of_origin": "Chile",
+  "government_warning": "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."
+}
