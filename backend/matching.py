@@ -151,9 +151,15 @@ def match_class(expected, full_text, lines):
         # Unmapped class — behave exactly as before.
         return match_generic_fuzzy("class_type", expected, full_text, lines)
 
-    # Pass if any acceptable designation appears on the label (whole-word).
+    # Pass if any acceptable designation appears on the label. We check two ways:
+    #  1. whole-word match (handles short terms like "gin" without false hits);
+    #  2. substring against a de-spaced label for longer terms — OCR routinely
+    #     drops spaces ("CABERNETSAUVIGNON"), which a \b match would miss.
+    label_compact = re.sub(r"[^a-z0-9]", "", label)
     for term in sorted(acceptable, key=len, reverse=True):
-        if re.search(r"\b" + re.escape(term) + r"\b", label):
+        term_compact = re.sub(r"[^a-z0-9]", "", term)
+        if re.search(r"\b" + re.escape(term) + r"\b", label) or \
+           (len(term_compact) >= 5 and term_compact in label_compact):
             return _result("class_type", PASS, expected, term, 100,
                            f'Label shows "{term}", which satisfies "{expected}".')
 

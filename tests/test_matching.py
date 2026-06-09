@@ -140,6 +140,13 @@ def test_class_red_code_not_satisfied_by_white_varietal():
     assert status_for(results, "class_type") == NOT_FOUND
 
 
+def test_class_matches_when_ocr_drops_spaces():
+    # OCR often merges words; "CABERNETSAUVIGNON" must still satisfy red wine.
+    results, _ = verify_fields("CHATEAU X\nCABERNETSAUVIGNON\n750ML",
+                               {"class_type": "TABLE RED WINE"})
+    assert status_for(results, "class_type") == PASS
+
+
 def test_unmapped_class_falls_back_to_fuzzy():
     results, _ = verify_fields("Premium Hard Seltzer\nBlack Cherry",
                                {"class_type": "Hard Seltzer"})
