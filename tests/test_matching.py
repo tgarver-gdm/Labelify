@@ -38,7 +38,12 @@ def test_exact_brand_passes():
 def test_brand_case_difference_is_flagged_not_passed():
     # Dave's nuance: same letters, different case => REVIEW, not silent PASS.
     results, _ = verify_fields(GOOD_LABEL, {"brand_name": "Stone's Throw"})
-    assert status_for(results, "brand_name") == REVIEW
+    brand = next(r for r in results if r["field"] == "brand_name")
+    assert brand["status"] == REVIEW
+    # Regression: case-insensitive line search must surface the ACTUAL brand line
+    # (not a random line like the warning's trailing "problems."). This was a live
+    # bug — rapidfuzz is case-sensitive by default.
+    assert brand["found"] == "STONE'S THROW"
 
 
 def test_abv_matches_despite_formatting():

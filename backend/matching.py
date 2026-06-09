@@ -46,7 +46,12 @@ def _best_line(needle, lines):
     """Return the label line most similar to `needle`, with its score (0-100)."""
     if not lines:
         return "", 0.0
-    scored = [(ln, fuzz.token_set_ratio(needle, ln)) for ln in lines]
+    # Case-insensitive scoring: rapidfuzz is case-sensitive by default, which
+    # would rank a correctly-cased label line LOW (and break case-difference
+    # detection for brand names). We compare case-folded, but return the line's
+    # ORIGINAL text so the caller can still inspect its real casing.
+    nl = needle.lower()
+    scored = [(ln, fuzz.token_set_ratio(nl, ln.lower())) for ln in lines]
     scored.sort(key=lambda x: x[1], reverse=True)
     return scored[0]
 
