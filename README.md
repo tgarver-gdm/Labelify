@@ -45,6 +45,16 @@ The problem splits cleanly into two halves:
    *different rule per field* (`backend/matching.py`). Pure, fast, and
    fully unit-tested without images.
 
+### Single vs. batch
+
+The UI has two modes. **Single** verifies one product (Front/Back/Neck slots).
+**Batch** (for Sarah's high-volume importers) takes a **CSV manifest** — one row
+per product with its panel filenames and application data — plus all the images,
+and returns a per-product verdict table. Same matching core, looped over the
+manifest (`POST /verify-batch`, `backend/batch.py`). A runnable example using the
+bundled real labels is in `tests/sample_data/batch_manifest_example.csv`, and the
+UI has a one-click template download.
+
 ### Why these choices (mapped to stakeholder constraints)
 
 | Constraint (from the brief) | Decision |
@@ -174,9 +184,6 @@ this repo (it already has a root `Dockerfile`). One change: HF serves on port
   layout/vision analysis, out of scope for a prototype.
 - Matching thresholds (88 / 72 for fuzzy fields) are sensible defaults; they'd
   be tuned against a real labelled sample set.
-- One label per request in the UI. **Batch upload** (Sarah's request for
-  importers) is intentionally deferred — it's the same `/verify` call in a loop
-  and was left out to keep the core clean per the brief's trade-off philosophy.
 - No persistence / no PII stored, per the prototype scope.
 
 ## Domain rules encoded
@@ -203,5 +210,5 @@ false-fails every wine.
 ## If I had more time
 
 Image preprocessing (deskew + contrast), threshold tuning on real labels, a
-local vision-language model as a fallback for hard images, batch upload, and
-saving results for audit. None of these change the two-stage architecture.
+local vision-language model as a fallback for hard images, and saving results
+for audit. None of these change the two-stage architecture.

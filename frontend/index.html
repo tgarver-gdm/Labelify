@@ -12,6 +12,17 @@
   header { background:#0b3d2e; color:#fff; padding:18px 24px; }
   header h1 { margin:0; font-size:20px; }
   header p { margin:4px 0 0; opacity:.85; font-size:13px; }
+  .tabs { margin-top:12px; display:flex; gap:6px; }
+  .tab { width:auto; margin:0; padding:7px 16px; font-size:14px; font-weight:600; cursor:pointer;
+         color:#cfe3da; background:rgba(255,255,255,.12); border:none; border-radius:7px 7px 0 0; }
+  .tab.active { background:var(--bg); color:var(--ink); }
+  table.batch { width:100%; border-collapse:collapse; font-size:13px; grid-column:1/-1; }
+  table.batch th, table.batch td { text-align:left; padding:7px 9px; border-bottom:1px solid #eaeef2; }
+  table.batch th { background:#f6f8fa; font-size:12px; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:11px; font-size:12px; font-weight:700; }
+  .pill.pass { background:#eaf6ec; color:var(--green); }
+  .pill.needs_review { background:#fff8e5; color:var(--amber); }
+  .pill.fail, .pill.no_images, .pill.error { background:#ffebe9; color:var(--red); }
   main { max-width: 980px; margin: 24px auto; padding: 0 16px;
          display:grid; grid-template-columns: 1fr 1fr; gap:20px; }
   .card { background:#fff; border:1px solid #d0d7de; border-radius:10px; padding:18px; }
@@ -60,10 +71,14 @@
 <body>
 <header>
   <h1>Labelify <span style="font-weight:400;opacity:.8;font-size:14px">· TTB Label Verification</span></h1>
-  <p>Upload a label photo and the application data. We check each required field for you.</p>
+  <p>Verify a label against its application data — one product, or a whole batch.</p>
+  <div class="tabs">
+    <button class="tab active" data-tab="single">Single label</button>
+    <button class="tab" data-tab="batch">Batch (importers)</button>
+  </div>
 </header>
 
-<main>
+<main id="single">
   <section class="card">
     <h2>1. Label photos</h2>
     <p class="muted" style="margin:0 0 10px">Add a photo for each panel. Front is required; back &amp; neck if the product has them.</p>
@@ -95,6 +110,20 @@
   </section>
 
   <section id="out" class="card results" style="display:none"></section>
+</main>
+
+<main id="batch" style="display:none">
+  <section class="card" style="grid-column:1/-1">
+    <h2>Batch verification</h2>
+    <p class="muted" style="margin:0 0 12px">For high-volume importers. Upload a CSV manifest (one row per product, with its
+      panel filenames and application data) plus all the label images. <a href="#" id="tmpl">Download a template ↓</a></p>
+    <label>Manifest (CSV or JSON)</label>
+    <input id="manifest" type="file" accept=".csv,.json,text/csv,application/json" />
+    <label style="margin-top:12px">Label images (select all)</label>
+    <input id="batchimgs" type="file" accept="image/*" multiple />
+    <button id="gobatch">Verify batch</button>
+  </section>
+  <section id="batchout" class="card results" style="display:none"></section>
 </main>
 
 <script>
@@ -199,6 +228,75 @@
 
   function escapeHtml(s){ return String(s).replace(/[&<>]/g, c =>
     ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+  // ---- Tab switching ----
+  document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("single").style.display = t.dataset.tab === "single" ? "" : "none";
+    document.getElementById("batch").style.display  = t.dataset.tab === "batch"  ? "" : "none";
+  });
+
+  // ---- Batch ----
+  const TEMPLATE =
+    "id,images,brand_name,class_type,alcohol_content,net_contents,producer_name_address,country_of_origin\n" +
+    "P1,p1_front.jpg;p1_back.jpg,Stone's Throw,Red Wine,13.5%,750 mL,Acme Winery,\n" +
+    "P2,p2_front.jpg;p2_back.jpg,Acme,White Wine,12%,750 mL,Acme Winery,France\n";
+  document.getElementById("tmpl").onclick = e => {
+    e.preventDefault();
+    const a = document.createElement("a");
+    a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(TEMPLATE);
+    a.download = "labelify_batch_template.csv"; a.click();
+  };
+
+  const BPILL = { pass:"PASS", needs_review:"REVIEW", fail:"FAIL",
+                  no_images:"NO IMAGES", error:"ERROR" };
+  document.getElementById("gobatch").onclick = async () => {
+    const manifest = document.getElementById("manifest").files[0];
+    const imgs = document.getElementById("batchimgs").files;
+    if (!manifest) { alert("Please choose a manifest CSV first."); return; }
+    if (!imgs.length) { alert("Please select the label image files."); return; }
+    const btn = document.getElementById("gobatch");
+    btn.disabled = true; btn.textContent = `Verifying ${imgs.length} images…`;
+
+    const fd = new FormData();
+    fd.append("manifest", manifest);
+    for (const f of imgs) fd.append("images", f);
+    try {
+      const res = await fetch("/verify-batch", { method:"POST", body: fd });
+      const data = await res.json();
+      renderBatch(data);
+    } catch (err) {
+      alert("Something went wrong: " + err);
+    } finally {
+      btn.disabled = false; btn.textContent = "Verify batch";
+    }
+  };
+
+  function renderBatch(data) {
+    const out = document.getElementById("batchout");
+    if (data.error) { out.style.display="block";
+      out.innerHTML = `<div class="banner fail">${escapeHtml(data.error)}</div>`; return; }
+
+    const s = data.summary || {};
+    const chips = Object.keys(s).map(k =>
+      `<span class="pill ${k}">${BPILL[k]||k}: ${s[k]}</span>`).join(" ");
+    let html = `<div style="margin-bottom:12px"><strong>${data.count} products</strong> &nbsp; ${chips}</div>`;
+    html += `<table class="batch"><tr><th>ID</th><th>Panels</th><th>Result</th><th>Field issues</th></tr>`;
+    for (const p of data.products) {
+      const issues = (p.results || [])
+        .filter(r => r.status !== "pass")
+        .map(r => `${r.label}: ${ICON[r.status]||""}`).join(", ") || "—";
+      const miss = (p.missing_images && p.missing_images.length)
+        ? ` <span class="muted">(missing: ${escapeHtml(p.missing_images.join(", "))})</span>` : "";
+      html += `<tr><td><strong>${escapeHtml(p.id)}</strong></td><td>${p.panel_count}</td>`
+            + `<td><span class="pill ${p.overall}">${BPILL[p.overall]||p.overall}</span></td>`
+            + `<td>${escapeHtml(issues)}${miss}</td></tr>`;
+    }
+    html += `</table>`;
+    out.innerHTML = html; out.style.display = "block";
+    out.scrollIntoView({ behavior:"smooth" });
+  }
 </script>
 </body>
 </html>

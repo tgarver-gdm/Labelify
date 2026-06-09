@@ -19,10 +19,23 @@ import os
 
 from ocr import get_ocr
 from matching import verify_fields, DEFAULT_GOVERNMENT_WARNING
+from batch import parse_manifest
 
 app = FastAPI(title="TTB Label Verification")
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
+
+def _verify_panels(panel_bytes, expected_overrides):
+    """OCR a list of image-bytes, combine, and verify. Shared by /verify and
+    /verify-batch. The warning is always the fixed federal constant."""
+    ocr = get_ocr()
+    texts = [ocr.extract_text(b) for b in panel_bytes]
+    ocr_text = "\n\n".join(texts)
+    expected = dict(expected_overrides)
+    expected["government_warning"] = DEFAULT_GOVERNMENT_WARNING
+    results, overall = verify_fields(ocr_text, expected)
+    return results, overall, ocr_text
 
 
 @app.get("/health")
@@ -69,6 +82,57 @@ async def verify(
     results, overall = verify_fields(ocr_text, expected)
     return {"overall": overall, "results": results,
             "ocr_text": ocr_text, "image_count": len(images)}
+
+
+@app.post("/verify-batch")
+async def verify_batch(
+    manifest: UploadFile = File(...),
+    images: List[UploadFile] = File(default=[]),
+):
+    """
+    Batch mode for high-volume importers. Upload a CSV/JSON manifest (one row per
+    product, listing its panel filenames + expected fields) plus all the label
+    images. Returns a per-product verdict table. Images are matched to products
+    by filename (full name or basename).
+    """
+    try:
+        manifest_text = (await manifest.read()).decode("utf-8-sig")
+        products = parse_manifest(manifest_text)
+    except Exception as exc:
+        return JSONResponse(status_code=400,
+                            content={"error": f"Could not parse manifest: {exc}"})
+
+    # Index uploaded images by both full filename and basename for flexible mapping.
+    img_map = {}
+    for img in images:
+        data = await img.read()
+        img_map[img.filename] = data
+        img_map[os.path.basename(img.filename)] = data
+
+    results = []
+    for p in products:
+        panel_bytes, missing = [], []
+        for fn in p["images"]:
+            data = img_map.get(fn) or img_map.get(os.path.basename(fn))
+            (panel_bytes.append(data) if data is not None else missing.append(fn))
+
+        if not panel_bytes:
+            results.append({"id": p["id"], "overall": "no_images",
+                            "results": [], "panel_count": 0, "missing_images": missing})
+            continue
+        try:
+            field_results, overall, _ = _verify_panels(panel_bytes, p["expected"])
+        except Exception as exc:
+            results.append({"id": p["id"], "overall": "error",
+                            "results": [], "panel_count": len(panel_bytes), "error": str(exc)})
+            continue
+        results.append({"id": p["id"], "overall": overall, "results": field_results,
+                        "panel_count": len(panel_bytes), "missing_images": missing})
+
+    summary = {}
+    for r in results:
+        summary[r["overall"]] = summary.get(r["overall"], 0) + 1
+    return {"count": len(results), "summary": summary, "products": results}
 
 
 # Serve the frontend. Mounted last so it doesn't shadow the API routes.
