@@ -1,0 +1,9 @@
+{
+  "_source": "TTB Public COLA Registry, TTB ID 22202001001034 (approved 2022-07-28)",
+  "_label_image": "real_stone_imperial_whiskey_back.png (back label)",
+  "_note": "Real approved label. Tiny low-contrast government-warning print makes it a deliberately hard OCR case — exercises the fail-safe 'partial detection -> review' behavior.",
+  "brand_name": "STONE",
+  "class_type": "Whisky",
+  "producer_name_address": "Foundry Distilling Co, West Des Moines, IA",
+  "government_warning": "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."
+}

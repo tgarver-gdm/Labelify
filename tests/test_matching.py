@@ -96,6 +96,20 @@ def test_government_warning_missing():
     assert status_for(results, "government_warning") == NOT_FOUND
 
 
+def test_government_warning_partial_ocr_is_review_not_missing():
+    # Real-world case (Stone Imperial Whiskey): tiny low-contrast print, OCR
+    # garbles the warning below the exact-match threshold but still reads several
+    # distinctive phrases. Should be REVIEW (verify manually), not NOT_FOUND.
+    garbled = (
+        "ALCOHOLIC BEVERAGESDURING PREGNA\n"
+        "BECAUSE OF THE RISK OF BIRTH DEFECTS.\n"
+        "YOURABILITYTO DRIVEACAROROPERATI\n"
+        "MACHINERY, AND MAY CAUSE HEALTH PROBLEMS"
+    )
+    results, _ = verify_fields(garbled, {"government_warning": GOV})
+    assert status_for(results, "government_warning") == REVIEW
+
+
 def test_only_filled_fields_are_checked():
     results, _ = verify_fields(GOOD_LABEL, {"brand_name": "STONE'S THROW", "class_type": ""})
     assert len(results) == 1

@@ -204,8 +204,39 @@ def match_government_warning(expected, full_text, lines):
     if score >= 80:
         return _result("government_warning", MISMATCH, expected, None, score,
                        "Warning text is present but does not exactly match the required statement.")
+
+    # Partial detection: on hard labels (small, low-contrast print) OCR often
+    # garbles the warning enough to miss the exact-match threshold, yet clearly
+    # reads several of its distinctive phrases. Rather than a flat "not found"
+    # (which reads as "the warning is absent"), flag it for a human to confirm —
+    # the warning is likely there, just unreadable to OCR. Fail-safe, informative.
+    fragments = _count_warning_fragments(norm_text)
+    if fragments >= 2:
+        return _result("government_warning", REVIEW, expected,
+                       f"{fragments} warning phrases detected", score,
+                       "Warning text partially detected but too unclear to verify exactly "
+                       "(small/low-contrast print). Please confirm manually.")
+
     return _result("government_warning", NOT_FOUND, expected, None, score,
                    "Required government warning statement not found.")
+
+
+# Distinctive phrases from the federal warning. Used only to decide whether a
+# garbled OCR read still contains *enough* of the warning to warrant human review.
+_WARNING_FRAGMENTS = (
+    "surgeon general",
+    "birth defects",
+    "operate machinery",
+    "health problems",
+    "during pregnancy",
+    "government warning",
+)
+
+
+def _count_warning_fragments(norm_text):
+    low = norm_text.lower()
+    return sum(1 for frag in _WARNING_FRAGMENTS
+               if fuzz.partial_ratio(frag, low) >= 85)
 
 
 # ---------------------------------------------------------------------------

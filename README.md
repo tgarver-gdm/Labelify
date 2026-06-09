@@ -92,9 +92,17 @@ The brief shipped **no sample labels**, so:
   `tests/sample_data/sample_application.json`. Note the application uses
   *"Stone's Throw"* while the label shows *"STONE'S THROW"* — a deliberate
   demo of the case-difference REVIEW flag.
-- **Real labels:** the public **TTB COLA Public Registry**
-  (ttbonline.gov → "Public COLA Registry") has thousands of real approved
-  labels with their application data — ideal for realistic testing.
+- **Real label included:** `real_stone_imperial_whiskey_back.png` +
+  `real_stone_imperial_whiskey_application.json` — an actual approved label
+  (Stone Imperial Whiskey, TTB ID 22202001001034). Its tiny low-contrast
+  government-warning print is a deliberately hard OCR case that exercises the
+  fail-safe "partial detection → review" behavior.
+- **More real labels:** the public **TTB COLA Registry**. To get a label image:
+  1. Search at `https://www.ttbonline.gov/colasonline/publicSearchColasBasic.do`
+  2. Open a result, click **Printable Version**
+     (`viewColaDetails.do?action=publicFormDisplay&ttbid=<TTB_ID>`)
+  3. Right-click the label image → **Save image as**. (The image servlet
+     requires the browser session, so direct-download links won't work.)
 
 ---
 
