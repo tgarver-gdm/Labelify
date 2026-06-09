@@ -8,6 +8,8 @@ seconds.
 > Built for the take-home brief. Guiding principle: a **clean, working core**
 > over incomplete ambitious features.
 
+📄 **For the reasoning behind every decision, see [APPROACH.md](APPROACH.md).**
+
 ---
 
 ## How it works (30-second version)
@@ -112,13 +114,28 @@ The app is a single container (OCR needs system libs, so Docker keeps it
 reproducible):
 
 ```bash
-docker build -t ttb-label-verify .
-docker run -p 8000:8000 ttb-label-verify
+docker build -t labelify .
+docker run -p 8000:8000 labelify
 ```
 
-Deploy that image to any container host (Render / Railway / Fly.io / Azure
-Container Apps). For TTB's own air-gapped network it runs self-contained — no
-egress required.
+For TTB's own air-gapped network it runs self-contained — no egress required.
+
+### Free hosting options (for the deployed demo URL)
+
+| Host | Free? | Fit for this app | Notes |
+| --- | --- | --- | --- |
+| **Hugging Face Spaces (Docker)** ⭐ | Yes, no card | **Best** | 16 GB RAM handles the ONNX OCR comfortably; purpose-built for AI demos; persistent public URL. Sleeps when idle, wakes on visit. |
+| **Render (Web Service)** | Yes, no card | Good | Builds from the `Dockerfile`. Free tier is 512 MB RAM (tight for ONNX) and cold-starts after 15 min idle. |
+| **Koyeb** | Yes, no card | Good | One free Docker service, global URL. |
+| **Google Cloud Run** | Generous free tier | Good | Scales to zero, pay-per-use ≈ \$0 at demo traffic. Requires a GCP account + card on file. |
+| **Fly.io** | Small free allowance | OK | Docker-native; requires a card. |
+
+> Vercel / Netlify are **not** suitable — they're for static/serverless front
+> ends and won't run a Python OCR container.
+
+**Recommended: Hugging Face Spaces.** Create a new Space → SDK **Docker** → push
+this repo (it already has a root `Dockerfile`). One change: HF serves on port
+**7860**, so either expose 7860 or set the start command's `--port 7860`.
 
 ---
 
