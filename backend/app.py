@@ -18,7 +18,7 @@ from typing import List
 import os
 
 from ocr import get_ocr
-from matching import verify_fields
+from matching import verify_fields, DEFAULT_GOVERNMENT_WARNING
 
 app = FastAPI(title="TTB Label Verification")
 
@@ -39,7 +39,6 @@ async def verify(
     net_contents: str = Form(""),
     producer_name_address: str = Form(""),
     country_of_origin: str = Form(""),
-    government_warning: str = Form(""),
 ):
     # OCR every uploaded panel and combine the text. A blank line between panels
     # keeps lines from different images from being read as one (e.g. a brand on
@@ -63,7 +62,8 @@ async def verify(
         "net_contents": net_contents,
         "producer_name_address": producer_name_address,
         "country_of_origin": country_of_origin,
-        "government_warning": government_warning,
+        # Always checked against the fixed federal text — not a form input.
+        "government_warning": DEFAULT_GOVERNMENT_WARNING,
     }
 
     results, overall = verify_fields(ocr_text, expected)

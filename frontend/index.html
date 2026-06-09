@@ -28,7 +28,8 @@
   label { display:block; font-size:13px; font-weight:600; margin:10px 0 4px; }
   input, textarea { width:100%; padding:9px 10px; border:1px solid #d0d7de; border-radius:7px;
                     font-size:14px; font-family:inherit; }
-  textarea { min-height:90px; resize:vertical; }
+  .autofield { font-size:13px; color:#1a7f37; background:#eaf6ec; border:1px solid #bce0c4;
+               border-radius:7px; padding:9px 11px; margin:14px 0 0; }
   button { margin-top:16px; width:100%; padding:13px; font-size:16px; font-weight:600;
            color:#fff; background:var(--green); border:none; border-radius:8px; cursor:pointer; }
   button:disabled { opacity:.6; cursor:wait; }
@@ -79,8 +80,8 @@
     <input id="producer_name_address" placeholder="e.g. Acme Winery, Napa CA" />
     <label>Country of origin (imports)</label>
     <input id="country_of_origin" placeholder="e.g. France" />
-    <label>Government health warning</label>
-    <textarea id="government_warning"></textarea>
+    <p class="autofield">✓ <strong>Government health warning</strong> — checked automatically
+      against the fixed federal text (27 CFR Part 16). Not something you enter.</p>
     <button id="go">Verify label</button>
   </section>
 
@@ -88,13 +89,8 @@
 </main>
 
 <script>
-  // Pre-fill the legally-fixed US government warning so agents don't retype it.
-  const GOV_WARNING =
-    "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not " +
-    "drink alcoholic beverages during pregnancy because of the risk of birth defects. " +
-    "(2) Consumption of alcoholic beverages impairs your ability to drive a car or " +
-    "operate machinery, and may cause health problems.";
-  document.getElementById("government_warning").value = GOV_WARNING;
+  // The government warning is fixed by law, so the backend always checks it
+  // against its own canonical constant — it is not collected from this form.
 
   const drop = document.getElementById("drop");
   const fileInput = document.getElementById("file");
@@ -131,7 +127,7 @@
   };
 
   const FIELDS = ["brand_name","class_type","alcohol_content","net_contents",
-                  "producer_name_address","country_of_origin","government_warning"];
+                  "producer_name_address","country_of_origin"];
   const ICON = { pass:"✅", review:"⚠️", mismatch:"❌", not_found:"❌" };
   const BANNER = { pass:"PASS — all fields verified",
                    needs_review:"NEEDS REVIEW — some fields need a human glance",

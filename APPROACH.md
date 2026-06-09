@@ -35,9 +35,9 @@ compliance tool where an agent is accountable for the result.
 | --- | --- | --- |
 | "Network blocks outbound traffic… avoid cloud API dependencies" — **Marcus (IT)** | **No cloud LLM/API.** OCR runs locally (RapidOCR, ONNX). | A cloud-vision call would literally fail on their network. This is the load-bearing constraint and rules out the obvious "just call GPT-4V" answer. |
 | "Results back in ~5 seconds or nobody uses it" — **Sarah** | OCR once per image (~1–2s CPU); matching is plain string math (ms). Model loaded once at startup. | The only real cost is the vision step; everything after is instant. |
-| "My mother could figure it out" — **Sarah** | One page: drop a photo, the warning text is pre-filled, results are a green-✓ / red-✗ checklist. | Mirrors the manual checklist agents already use. Nothing to learn. |
+| "My mother could figure it out" — **Sarah** | One page: drop photos, fill only the application-specific fields, results are a green-✓ / red-✗ checklist. | Mirrors the manual checklist agents already use. Nothing to learn. |
 | "STONE'S THROW vs Stone's Throw" — **Dave** | Brand matching flags case/punctuation differences as **REVIEW**, never a silent pass. | The whole point is nuance; auto-normalizing would erase exactly the signal Dave cares about. |
-| Warning = exact text, ALL CAPS, bold — **Jenny** | Strictest matcher: verifies text + ALL CAPS; **flags bold for human confirmation** because OCR can't read font weight. | Honesty over theater — I don't fake a check I can't perform. |
+| Warning = exact text, ALL CAPS, bold — **Jenny** | Strictest matcher: verifies text + ALL CAPS; **flags bold for human confirmation** because OCR can't read font weight. The text is **fixed by law (27 CFR Part 16), so it's a built-in constant the app always checks — not a form field the agent types.** | Honesty over theater; and per-application input for a legally-fixed string would just invite typos. |
 | Photos at angles / glare — **Jenny** | RapidOCR handles rotation; fuzzy matching tolerates minor misreads; every field shows what was read + a confidence score. | Low-confidence fields get human eyes instead of a false pass. The tool *assists*, it doesn't replace judgment. |
 | Batch upload for importers — **Sarah** | Deferred (documented). | Same `/verify` call in a loop. Left out to keep the core clean, per the brief. |
 

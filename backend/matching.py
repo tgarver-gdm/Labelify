@@ -29,6 +29,17 @@ FIELD_LABELS = {
     "government_warning": "Government health warning",
 }
 
+# The federal health warning is FIXED by law (27 CFR Part 16) — the exact same
+# text on every alcohol product. It is therefore NOT per-application data the
+# agent types; it's a constant the app always checks the label against. The form
+# doesn't ask for it — this is the single source of truth.
+DEFAULT_GOVERNMENT_WARNING = (
+    "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not "
+    "drink alcoholic beverages during pregnancy because of the risk of birth defects. "
+    "(2) Consumption of alcoholic beverages impairs your ability to drive a car or "
+    "operate machinery, and may cause health problems."
+)
+
 
 def _result(field, status, expected, found, confidence, message):
     return {
