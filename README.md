@@ -1,3 +1,13 @@
+---
+title: TTB Labelify
+emoji: 🍷
+colorFrom: green
+colorTo: yellow
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # Labelify — TTB Label Verification (Prototype)
 
 An AI-assisted tool for TTB agents to verify that an alcohol beverage **label**
