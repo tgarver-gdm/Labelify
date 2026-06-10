@@ -185,7 +185,9 @@ this repo (it already has a root `Dockerfile`). One change: HF serves on port
   layout/vision analysis, out of scope for a prototype.
 - Matching thresholds (88 / 72 for fuzzy fields) are sensible defaults; they'd
   be tuned against a real labelled sample set.
-- No persistence / no PII stored, per the prototype scope.
+- **No storage.** Uploaded images are read into memory, run through OCR, and
+  discarded when the request ends — nothing is written to disk, cached, or saved
+  to a database. There's no PII at rest, which matches Marcus's no-storage note.
 
 ## Domain rules encoded
 
