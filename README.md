@@ -42,23 +42,6 @@ This README is just the practical stuff: setup, tools, and the config knobs.
 
 ---
 
-## Quick start
-
-```bash
-git clone https://github.com/tgarver-gdm/Labelify.git
-cd Labelify
-python -m venv .venv
-.venv\Scripts\activate          # Windows  (macOS/Linux: source .venv/bin/activate)
-pip install -r backend/requirements.txt
-
-uvicorn app:app --app-dir backend     # then open http://localhost:8000
-```
-
-First request downloads/loads the OCR model (a few seconds); after that it's
-fast. Run the tests with `pytest -q` (they need no images or model).
-
----
-
 ## Tools used
 
 | Tool                                  | What it does here                                                                                        |
@@ -74,6 +57,23 @@ fast. Run the tests with `pytest -q` (they need no images or model).
 
 No cloud APIs, no database, no auth, no build tooling. On purpose — it has to run
 on an air-gapped network and stay simple.
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/tgarver-gdm/Labelify.git
+cd Labelify
+python -m venv .venv
+.venv\Scripts\activate          # Windows  (macOS/Linux: source .venv/bin/activate)
+pip install -r backend/requirements.txt
+
+uvicorn app:app --app-dir backend     # then open http://localhost:8000
+```
+
+First request downloads/loads the OCR model (a few seconds); after that it's
+fast. Run the tests with `pytest -q` (they need no images or model).
 
 ---
 
