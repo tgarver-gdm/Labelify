@@ -110,6 +110,22 @@ def test_government_warning_partial_ocr_is_review_not_missing():
     assert status_for(results, "government_warning") == REVIEW
 
 
+def test_government_warning_all_caps_words_merged_by_ocr_is_review():
+    # Reported case: OCR reads the full warning correctly but drops the spaces
+    # between the dense all-caps words. Every word is present and in order, so
+    # this must be REVIEW (present + all caps), NOT a "does not match" mismatch.
+    merged = (
+        "GOVERNMENT\nWARNING:(1)ACCORDING TO THE\n"
+        "SURGEONGENERAL,WOMENSHOULDNOTDRINKALCOHOLIC\n"
+        "BEVERAGESDURINGPREGNANCYBECAUSEOFTHERISK\n"
+        "OF BIRTH DEFECTS.(2)CONSUMPTION OF ALCOHOLIC\n"
+        "BEVERAGESIMPAIRSYOURABILITYTODRIVEACAROR\n"
+        "OPERATEMACHINERYANDMAYCAUSEHEALTHPROBLEMS."
+    )
+    results, _ = verify_fields(merged, {"government_warning": GOV})
+    assert status_for(results, "government_warning") == REVIEW
+
+
 def test_only_filled_fields_are_checked():
     results, _ = verify_fields(GOOD_LABEL, {"brand_name": "STONE'S THROW", "class_type": ""})
     assert len(results) == 1

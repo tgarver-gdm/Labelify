@@ -271,42 +271,40 @@ def match_net_contents(expected, full_text, lines):
 def match_government_warning(expected, full_text, lines):
     """
     The strictest field (Jenny). Requirements: exact text, ALL CAPS, bold.
-    - Text/exactness: fuzzy-match the full statement so a single OCR slip doesn't
-      fail an otherwise-correct label, but require a very high score.
-    - ALL CAPS: verified directly.
-    - BOLD: cannot be determined from OCR text — we flag it for human eyes rather
-      than pretend to check it. (Saying what we *can't* verify is the honest call.)
+
+    Key OCR reality: the warning is dense all-caps print, and OCR routinely drops
+    the spaces between words ("SURGEONGENERAL,WOMENSHOULDNOT..."). That is a
+    *segmentation* artifact, not a content error — every word is present and in
+    order. So we compare on letters/digits only (whitespace- and punctuation-
+    insensitive); a correct-but-unspaced warning then scores ~100 instead of being
+    wrongly flagged as a text mismatch.
+
+    - Text present: high compact-score -> the statement is there.
+    - ALL CAPS: checked whitespace-insensitively.
+    - BOLD / exact punctuation: cannot be read reliably from a photo, so we flag
+      them for human confirmation rather than fail (or pretend to verify) them.
     """
-    norm_text = re.sub(r"\s+", " ", full_text).strip()
-    norm_want = re.sub(r"\s+", " ", expected).strip()
+    score = fuzz.partial_ratio(_alnum(expected), _alnum(full_text)) if _alnum(expected) else 0
+    caps_present = "GOVERNMENTWARNING" in re.sub(r"[^A-Z0-9]", "", full_text)
 
-    score = fuzz.partial_ratio(norm_want.lower(), norm_text.lower())
-    has_header = "GOVERNMENT WARNING" in full_text  # exact-case check
-
-    if score >= 96 and has_header:
-        return _result("government_warning", REVIEW, expected,
-                       "GOVERNMENT WARNING: …", score,
-                       "Warning text present and in ALL CAPS. "
-                       "Bold styling cannot be verified by OCR — please confirm visually.")
-    if score >= 96 and not has_header:
+    if score >= 95:
+        if caps_present:
+            return _result("government_warning", REVIEW, expected,
+                           "GOVERNMENT WARNING: … (all caps)", score,
+                           "Warning text present and in ALL CAPS. Bold styling and exact "
+                           "punctuation can't be confirmed from a photo — please verify visually.")
         return _result("government_warning", MISMATCH, expected,
                        "warning text present (not all caps)", score,
                        "Warning text is present but NOT in required ALL CAPS.")
-    if score >= 80:
-        return _result("government_warning", MISMATCH, expected, None, score,
-                       "Warning text is present but does not exactly match the required statement.")
 
-    # Partial detection: on hard labels (small, low-contrast print) OCR often
-    # garbles the warning enough to miss the exact-match threshold, yet clearly
-    # reads several of its distinctive phrases. Rather than a flat "not found"
-    # (which reads as "the warning is absent"), flag it for a human to confirm —
-    # the warning is likely there, just unreadable to OCR. Fail-safe, informative.
-    fragments = _count_warning_fragments(norm_text)
-    if fragments >= 2:
+    # Present-but-imperfect: OCR read most of it (or several distinctive phrases),
+    # but not cleanly enough to confirm the exact statement. Route to a human
+    # rather than auto-fail — fail-safe, and avoids false rejects on hard labels.
+    if score >= 78 or _count_warning_fragments(full_text) >= 2:
         return _result("government_warning", REVIEW, expected,
-                       f"{fragments} warning phrases detected", score,
-                       "Warning text partially detected but too unclear to verify exactly "
-                       "(small/low-contrast print). Please confirm manually.")
+                       "warning text detected (OCR unclear)", score,
+                       "Warning text detected but OCR couldn't read it cleanly (dense "
+                       "all-caps / low-contrast print) — please confirm manually.")
 
     return _result("government_warning", NOT_FOUND, expected, None, score,
                    "Required government warning statement not found.")
@@ -324,10 +322,11 @@ _WARNING_FRAGMENTS = (
 )
 
 
-def _count_warning_fragments(norm_text):
-    low = norm_text.lower()
+def _count_warning_fragments(full_text):
+    # Compare on letters/digits only so OCR's dropped spaces don't hide a phrase.
+    low = _alnum(full_text)
     return sum(1 for frag in _WARNING_FRAGMENTS
-               if fuzz.partial_ratio(frag, low) >= 85)
+               if fuzz.partial_ratio(_alnum(frag), low) >= 88)
 
 
 # ---------------------------------------------------------------------------
