@@ -176,6 +176,17 @@
   const FIELDS = ["brand_name","class_type","alcohol_content","net_contents",
                   "producer_name_address","country_of_origin"];
   const ICON = { pass:"✅", review:"⚠️", mismatch:"❌", not_found:"❌" };
+
+  // Live elapsed-time readout on a button while it's working. Returns .stop()
+  // which clears the tick and gives the final elapsed seconds. Timing starts at
+  // the click and ends when the response lands — i.e. upload + OCR round-trip.
+  function startButtonTimer(btn, label) {
+    const t0 = performance.now();
+    const id = setInterval(() => {
+      btn.textContent = `${label} ${((performance.now() - t0) / 1000).toFixed(1)}s`;
+    }, 100);
+    return { stop() { clearInterval(id); return (performance.now() - t0) / 1000; } };
+  }
   const BANNER = { pass:"PASS — all fields verified",
                    needs_review:"NEEDS REVIEW — some fields need a human glance",
                    fail:"ATTENTION — one or more fields do not match" };
@@ -185,7 +196,7 @@
     if (!panels.length) { alert("Please add at least the Front label photo."); return; }
     const btn = document.getElementById("go");
     btn.disabled = true;
-    btn.textContent = panels.length > 1 ? `Reading ${panels.length} panels…` : "Reading label…";
+    const timer = startButtonTimer(btn, panels.length > 1 ? `Reading ${panels.length} panels…` : "Reading label…");
 
     const fd = new FormData();
     panels.forEach(s => fd.append("images", slotFiles[s]));   // Front, Back, Neck order
@@ -194,8 +205,10 @@
     try {
       const res = await fetch("/verify", { method:"POST", body: fd });
       const data = await res.json();
+      data._elapsed = timer.stop();
       render(data);
     } catch (err) {
+      timer.stop();
       alert("Something went wrong: " + err);
     } finally {
       btn.disabled = false; btn.textContent = "Verify label";
@@ -207,7 +220,8 @@
     if (data.error) { out.style.display="block"; out.innerHTML =
         `<div class="banner fail">${data.error}</div>`; return; }
 
-    let html = `<div class="banner ${data.overall}">${BANNER[data.overall] || data.overall}</div>`;
+    const took = data._elapsed != null ? ` <span style="float:right;font-weight:400">⏱ ${data._elapsed.toFixed(1)}s</span>` : "";
+    let html = `<div class="banner ${data.overall}">${BANNER[data.overall] || data.overall}${took}</div>`;
     for (const r of data.results) {
       html += `<div class="row ${r.status}">
         <div class="icon">${ICON[r.status] || "•"}</div>
@@ -257,7 +271,8 @@
     if (!manifest) { alert("Please choose a manifest CSV first."); return; }
     if (!imgs.length) { alert("Please select the label image files."); return; }
     const btn = document.getElementById("gobatch");
-    btn.disabled = true; btn.textContent = `Verifying ${imgs.length} images…`;
+    btn.disabled = true;
+    const timer = startButtonTimer(btn, `Verifying ${imgs.length} images…`);
 
     const fd = new FormData();
     fd.append("manifest", manifest);
@@ -265,8 +280,10 @@
     try {
       const res = await fetch("/verify-batch", { method:"POST", body: fd });
       const data = await res.json();
+      data._elapsed = timer.stop();
       renderBatch(data);
     } catch (err) {
+      timer.stop();
       alert("Something went wrong: " + err);
     } finally {
       btn.disabled = false; btn.textContent = "Verify batch";
@@ -281,7 +298,9 @@
     const s = data.summary || {};
     const chips = Object.keys(s).map(k =>
       `<span class="pill ${k}">${BPILL[k]||k}: ${s[k]}</span>`).join(" ");
-    let html = `<div style="margin-bottom:12px"><strong>${data.count} products</strong> &nbsp; ${chips}</div>`;
+    const took = data._elapsed != null
+      ? ` <span class="muted">⏱ ${data._elapsed.toFixed(1)}s (${(data._elapsed / Math.max(1, data.count)).toFixed(1)}s/product)</span>` : "";
+    let html = `<div style="margin-bottom:12px"><strong>${data.count} products</strong> &nbsp; ${chips}${took}</div>`;
     html += `<table class="batch"><tr><th>ID</th><th>Panels</th><th>Result</th><th>Field issues</th></tr>`;
     for (const p of data.products) {
       const issues = (p.results || [])
