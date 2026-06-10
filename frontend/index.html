@@ -33,6 +33,7 @@
               cursor:pointer; color:#57606a; background:#fafbfc; font-weight:600; font-size:14px; }
   .slotdrop small { display:block; font-weight:400; font-size:11px; opacity:.8; margin-top:2px; }
   .slot.hover .slotdrop { border-color: var(--green); background:#eaf6ec; }
+  .slotdrop:focus-visible { outline:3px solid #1a4fd6; outline-offset:2px; }
   .slot.filled .slotdrop { display:none; }
   .slotprev { position:relative; }
   .slotprev img { width:100%; border-radius:8px; border:1px solid #d0d7de; display:block; }
@@ -76,9 +77,9 @@
 <header>
   <h1>Labelify <span style="font-weight:400;opacity:.8;font-size:14px">· TTB Label Verification</span></h1>
   <p>Verify a label against its application data — one product, or a whole batch.</p>
-  <div class="tabs">
-    <button class="tab active" data-tab="single">Single label</button>
-    <button class="tab" data-tab="batch">Batch (importers)</button>
+  <div class="tabs" role="tablist" aria-label="Verification mode">
+    <button class="tab active" data-tab="single" role="tab" aria-selected="true">Single label</button>
+    <button class="tab" data-tab="batch" role="tab" aria-selected="false">Batch (importers)</button>
   </div>
 </header>
 
@@ -87,33 +88,33 @@
     <h2>1. Label photos</h2>
     <p class="muted" style="margin:0 0 10px">Add a photo for each panel. Front is required; back &amp; neck if the product has them.</p>
     <div class="slots">
-      <div class="slot" data-slot="Front"><div class="slotdrop">Front<br><small>required</small></div></div>
-      <div class="slot" data-slot="Back"><div class="slotdrop">Back<br><small>warning is here</small></div></div>
-      <div class="slot" data-slot="Neck"><div class="slotdrop">Neck<br><small>optional</small></div></div>
+      <div class="slot" data-slot="Front"><div class="slotdrop" role="button" tabindex="0" aria-label="Add Front label photo">Front<br><small>required</small></div></div>
+      <div class="slot" data-slot="Back"><div class="slotdrop" role="button" tabindex="0" aria-label="Add Back label photo (warning is here)">Back<br><small>warning is here</small></div></div>
+      <div class="slot" data-slot="Neck"><div class="slotdrop" role="button" tabindex="0" aria-label="Add Neck label photo (optional)">Neck<br><small>optional</small></div></div>
     </div>
     <input id="file" type="file" accept="image/*" hidden />
   </section>
 
   <section class="card">
     <h2>2. Application data</h2>
-    <label>Brand name</label>
+    <label for="brand_name">Brand name</label>
     <input id="brand_name" placeholder="e.g. Stone's Throw" />
-    <label>Class / type</label>
+    <label for="class_type">Class / type</label>
     <input id="class_type" placeholder="e.g. Red Wine" />
-    <label>Alcohol content (ABV)</label>
+    <label for="alcohol_content">Alcohol content (ABV)</label>
     <input id="alcohol_content" placeholder="e.g. 13.5%" />
-    <label>Net contents</label>
+    <label for="net_contents">Net contents</label>
     <input id="net_contents" placeholder="e.g. 750 mL" />
-    <label>Producer name &amp; address</label>
+    <label for="producer_name_address">Producer name &amp; address</label>
     <input id="producer_name_address" placeholder="e.g. Acme Winery, Napa CA" />
-    <label>Country of origin (imports)</label>
+    <label for="country_of_origin">Country of origin (imports)</label>
     <input id="country_of_origin" placeholder="e.g. France" />
     <p class="autofield">✓ <strong>Government health warning</strong> — checked automatically
       against the fixed federal text (27 CFR Part 16). Not something you enter.</p>
     <button id="go">Verify label</button>
   </section>
 
-  <section id="out" class="card results" style="display:none"></section>
+  <section id="out" class="card results" style="display:none" role="status" aria-live="polite"></section>
 </main>
 
 <main id="batch" style="display:none">
@@ -127,7 +128,7 @@
     <input id="batchimgs" type="file" accept="image/*" multiple />
     <button id="gobatch">Verify batch</button>
   </section>
-  <section id="batchout" class="card results" style="display:none"></section>
+  <section id="batchout" class="card results" style="display:none" role="status" aria-live="polite"></section>
 </main>
 
 <script>
@@ -150,7 +151,8 @@
     const img = document.createElement("img"); img.src = URL.createObjectURL(file);
     const cap = document.createElement("div"); cap.className = "cap"; cap.textContent = slot;
     const status = document.createElement("div"); status.className = "ocrstat reading"; status.textContent = "reading…";
-    const x = document.createElement("button"); x.textContent = "×"; x.title = "remove";
+    const x = document.createElement("button"); x.textContent = "×";
+    x.title = "remove"; x.setAttribute("aria-label", `Remove ${slot} photo`);
     x.onclick = (e) => { e.stopPropagation(); clearSlot(slot); };
     prev.append(img, cap, status, x);
 
@@ -177,7 +179,13 @@
   let activeSlot = null;
   document.querySelectorAll(".slot").forEach(el => {
     const slot = el.dataset.slot;
-    el.querySelector(".slotdrop").onclick = () => { activeSlot = slot; fileInput.click(); };
+    const drop = el.querySelector(".slotdrop");
+    const openPicker = () => { activeSlot = slot; fileInput.click(); };
+    drop.onclick = openPicker;
+    // Keyboard support (Section 508 / WCAG): the slot is operable with Enter/Space.
+    drop.onkeydown = e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPicker(); }
+    };
     el.ondragover = e => { e.preventDefault(); el.classList.add("hover"); };
     el.ondragleave = () => el.classList.remove("hover");
     el.ondrop = e => {
@@ -277,8 +285,10 @@
 
   // ---- Tab switching ----
   document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
-    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
-    t.classList.add("active");
+    document.querySelectorAll(".tab").forEach(x => {
+      x.classList.remove("active"); x.setAttribute("aria-selected", "false");
+    });
+    t.classList.add("active"); t.setAttribute("aria-selected", "true");
     document.getElementById("single").style.display = t.dataset.tab === "single" ? "" : "none";
     document.getElementById("batch").style.display  = t.dataset.tab === "batch"  ? "" : "none";
   });

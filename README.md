@@ -166,3 +166,22 @@ Self-contained — no outbound calls, so it works on an air-gapped network.
 | **Google Cloud Run**                | Generous free tier | Scales to zero; needs a GCP account + card.                                                                  |
 
 Vercel / Netlify won't work — they don't run a Python OCR container.
+
+---
+
+## Government web standards
+
+For a real Treasury/TTB system these apply. What's built in vs. what's a
+production step:
+
+| Requirement | Status |
+| --- | --- |
+| **Section 508 / WCAG 2.1 AA** (accessibility) | **Basics built in** — keyboard-operable (photo slots work with Enter/Space, visible focus outline), labels tied to inputs, results announced to screen readers (`aria-live`), and every status uses an icon **+ text**, never color alone. A full AA audit is a production step. |
+| **21st Century IDEA Act / USWDS** | Not applied — a production build would adopt the U.S. Web Design System styling. Out of scope for a prototype. |
+| **Privacy Act / Privacy Impact Assessment** | The app **stores nothing** (see Data handling), so there's no PII at rest. A formal PIA is still a production step. |
+| **FedRAMP / ATO, FISMA** | Hosting & authorization (Marcus noted the FedRAMP migration) — organizational, not code. Out of scope for a prototype. |
+| **Plain Writing Act** | The UI uses plain language. |
+
+Short version: the accessibility basics are in; USWDS theming, FedRAMP/ATO, and a
+formal PIA are real production work a prototype can't certify — listed here so
+they're not forgotten.
