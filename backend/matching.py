@@ -254,8 +254,10 @@ def match_net_contents(expected, full_text, lines):
     """Net contents — compare quantity + unit, tolerant of spacing (750mL == 750 mL)."""
     want = _parse_quantity(expected)
     if want is None:
-        return _match_fuzzy_core("net_contents", expected, full_text,
-                                 *(_best_line(expected, lines))[::-1])
+        # Expected value has no parseable quantity+unit (e.g. "750" with no unit)
+        # — fall back to a plain fuzzy presence check.
+        found_line, line_score = _best_line(expected, lines)
+        return _match_fuzzy_core("net_contents", expected, full_text, found_line, line_score)
     for val, unit, raw in _find_quantities(full_text):
         if abs(val - want[0]) < 0.001 and unit == want[1]:
             return _result("net_contents", PASS, expected, raw, 100,

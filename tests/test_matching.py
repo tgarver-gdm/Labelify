@@ -79,6 +79,16 @@ def test_net_contents_mismatch():
     assert status_for(results, "net_contents") == MISMATCH
 
 
+def test_net_contents_unparseable_value_does_not_crash():
+    # Regression: a net_contents value with no parseable quantity+unit (e.g. a
+    # bare number, or free text) must fall back to fuzzy matching, not raise.
+    for val in ["750", "three quarters", ""]:
+        results, _ = verify_fields(GOOD_LABEL, {"net_contents": val})
+        # "" is skipped entirely; non-empty values return a result without error.
+        assert all(r["field"] != "net_contents" or r["status"] in
+                   (PASS, REVIEW, MISMATCH, NOT_FOUND) for r in results)
+
+
 def test_government_warning_allcaps_passes_review():
     results, _ = verify_fields(GOOD_LABEL, {"government_warning": GOV})
     # PASS-equivalent but flagged REVIEW because bold can't be OCR-verified.
