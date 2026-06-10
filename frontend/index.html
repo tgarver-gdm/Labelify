@@ -38,6 +38,10 @@
   .slotprev img { width:100%; border-radius:8px; border:1px solid #d0d7de; display:block; }
   .slotprev .cap { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.6); color:#fff;
                    font-size:11px; text-align:center; padding:2px; border-radius:0 0 8px 8px; }
+  .ocrstat { position:absolute; top:4px; left:4px; font-size:10px; font-weight:700; padding:1px 6px;
+             border-radius:9px; }
+  .ocrstat.reading { background:#fff8e5; color:#9a6700; }
+  .ocrstat.ready { background:#eaf6ec; color:#1a7f37; }
   .slotprev button { position:absolute; top:-6px; right:-6px; width:22px; height:22px; padding:0;
                   border-radius:50%; background:var(--red); color:#fff; border:none; font-size:13px;
                   line-height:1; cursor:pointer; margin:0; }
@@ -132,6 +136,8 @@
 
   // One labeled slot per panel so there's no ambiguity about which photo is which.
   const slotFiles = { Front: null, Back: null, Neck: null };
+  const slotText = { Front: null, Back: null, Neck: null };   // pre-read OCR text
+  const slotPromise = { Front: null, Back: null, Neck: null }; // in-flight /ocr call
   const PANEL_ORDER = ["Front", "Back", "Neck"];
 
   function setSlot(slot, file) {
@@ -143,12 +149,25 @@
     prev.innerHTML = "";
     const img = document.createElement("img"); img.src = URL.createObjectURL(file);
     const cap = document.createElement("div"); cap.className = "cap"; cap.textContent = slot;
+    const status = document.createElement("div"); status.className = "ocrstat reading"; status.textContent = "reading…";
     const x = document.createElement("button"); x.textContent = "×"; x.title = "remove";
     x.onclick = (e) => { e.stopPropagation(); clearSlot(slot); };
-    prev.append(img, cap, x);
+    prev.append(img, cap, status, x);
+
+    // Pre-OCR this panel in the background so it's ready before Verify is clicked.
+    slotText[slot] = null;
+    const fd = new FormData(); fd.append("image", file);
+    slotPromise[slot] = fetch("/ocr", { method: "POST", body: fd })
+      .then(r => r.json())
+      .then(d => {
+        slotText[slot] = d.ocr_text != null ? d.ocr_text : null;
+        status.className = "ocrstat ready"; status.textContent = "✓ ready";
+        return slotText[slot];
+      })
+      .catch(() => { slotText[slot] = null; status.className = "ocrstat"; status.textContent = ""; });
   }
   function clearSlot(slot) {
-    slotFiles[slot] = null;
+    slotFiles[slot] = null; slotText[slot] = null; slotPromise[slot] = null;
     const el = document.querySelector(`.slot[data-slot="${slot}"]`);
     el.classList.remove("filled");
     const prev = el.querySelector(".slotprev"); if (prev) prev.remove();
@@ -196,16 +215,28 @@
     if (!panels.length) { alert("Please add at least the Front label photo."); return; }
     const btn = document.getElementById("go");
     btn.disabled = true;
-    const timer = startButtonTimer(btn, panels.length > 1 ? `Reading ${panels.length} panels…` : "Reading label…");
+    const timer = startButtonTimer(btn, "Verifying…");
+
+    // Wait for any still-running background OCR (usually already done by now).
+    await Promise.all(panels.map(s => slotPromise[s]).filter(Boolean));
+    const preRead = panels.every(s => slotText[s] != null);
 
     const fd = new FormData();
-    panels.forEach(s => fd.append("images", slotFiles[s]));   // Front, Back, Neck order
     FIELDS.forEach(f => fd.append(f, document.getElementById(f).value));
+    if (preRead) {
+      // Fast path: OCR already done in the background — just send the text.
+      fd.append("ocr_text", panels.map(s => slotText[s]).join("\n\n"));
+      fd.append("panel_count", String(panels.length));
+    } else {
+      // Fallback: send the raw images for the server to OCR.
+      panels.forEach(s => fd.append("images", slotFiles[s]));
+    }
 
     try {
       const res = await fetch("/verify", { method:"POST", body: fd });
       const data = await res.json();
       data._elapsed = timer.stop();
+      data._preRead = preRead;
       render(data);
     } catch (err) {
       timer.stop();
@@ -220,7 +251,8 @@
     if (data.error) { out.style.display="block"; out.innerHTML =
         `<div class="banner fail">${data.error}</div>`; return; }
 
-    const took = data._elapsed != null ? ` <span style="float:right;font-weight:400">⏱ ${data._elapsed.toFixed(1)}s</span>` : "";
+    const note = data._preRead ? " (OCR pre-loaded)" : "";
+    const took = data._elapsed != null ? ` <span style="float:right;font-weight:400">⏱ ${data._elapsed.toFixed(1)}s${note}</span>` : "";
     let html = `<div class="banner ${data.overall}">${BANNER[data.overall] || data.overall}${took}</div>`;
     for (const r of data.results) {
       html += `<div class="row ${r.status}">

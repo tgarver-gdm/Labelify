@@ -43,9 +43,27 @@ def health():
     return {"status": "ok", "ocr_provider": os.environ.get("OCR_PROVIDER", "rapidocr")}
 
 
+@app.post("/ocr")
+async def ocr_one(image: UploadFile = File(...)):
+    """
+    OCR a single panel and return its text. The UI calls this in the background
+    the moment a photo is added, so the (slow) OCR overlaps with the agent typing
+    the application data. The text is returned to the client — nothing is stored
+    server-side (stateless; no PII retained). On Verify the client sends the
+    pre-read text back, so the verify step is just instant field-matching.
+    """
+    try:
+        text = get_ocr().extract_text(await image.read())
+    except Exception as exc:
+        return JSONResponse(status_code=503, content={"error": f"OCR failed: {exc}"})
+    return {"ocr_text": text}
+
+
 @app.post("/verify")
 async def verify(
-    images: List[UploadFile] = File(...),
+    images: List[UploadFile] = File(default=[]),
+    ocr_text: str = Form(""),
+    panel_count: int = Form(0),
     brand_name: str = Form(""),
     class_type: str = Form(""),
     alcohol_content: str = Form(""),
@@ -53,20 +71,27 @@ async def verify(
     producer_name_address: str = Form(""),
     country_of_origin: str = Form(""),
 ):
-    # OCR every uploaded panel and combine the text. A blank line between panels
-    # keeps lines from different images from being read as one (e.g. a brand on
-    # the front bleeding into a warning line on the back).
-    texts = []
-    try:
-        ocr = get_ocr()
-        for img in images:
-            texts.append(ocr.extract_text(await img.read()))
-    except Exception as exc:  # OCR failures shouldn't 500 the agent
-        return JSONResponse(
-            status_code=503,
-            content={"error": f"OCR failed: {exc}. Try OCR_PROVIDER=mock to test the UI."},
-        )
-    ocr_text = "\n\n".join(texts)
+    # Two paths: (a) the client already OCR'd the panels in the background and
+    # sends the combined `ocr_text` — verify is then instant; (b) raw images are
+    # uploaded and we OCR them here (fallback / direct API use). A blank line
+    # between panels keeps lines from different images from merging.
+    if ocr_text.strip():
+        combined = ocr_text
+        n_panels = panel_count or len([s for s in ocr_text.split("\n\n") if s.strip()])
+    elif images:
+        try:
+            ocr = get_ocr()
+            texts = [ocr.extract_text(await img.read()) for img in images]
+        except Exception as exc:  # OCR failures shouldn't 500 the agent
+            return JSONResponse(
+                status_code=503,
+                content={"error": f"OCR failed: {exc}. Try OCR_PROVIDER=mock to test the UI."},
+            )
+        combined = "\n\n".join(texts)
+        n_panels = len(texts)
+    else:
+        return JSONResponse(status_code=400,
+                            content={"error": "Provide at least one image (or pre-read ocr_text)."})
 
     expected = {
         "brand_name": brand_name,
@@ -79,9 +104,9 @@ async def verify(
         "government_warning": DEFAULT_GOVERNMENT_WARNING,
     }
 
-    results, overall = verify_fields(ocr_text, expected)
+    results, overall = verify_fields(combined, expected)
     return {"overall": overall, "results": results,
-            "ocr_text": ocr_text, "image_count": len(images)}
+            "ocr_text": combined, "image_count": n_panels}
 
 
 @app.post("/verify-batch")
